@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f766e">
+  <title>Record Expense · VE L&amp;D Department Trip</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="logo">VE</span>
+        <div>
+          <h1>VE L&amp;D Department Trip</h1>
+          <p class="sub">Plan · Responsibilities · Expenses</p>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="index.html">🏠 Home</a>
+        <a href="expenses.html">💸 Record Expense</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Summary cards -->
+    <section class="cards">
+      <div class="card">
+        <span class="label">Opening Balance</span>
+        <strong id="openingCard">Rs 350,000</strong>
+      </div>
+      <div class="card spent">
+        <span class="label">Total Spent</span>
+        <strong id="spentCard">Rs 0</strong>
+      </div>
+      <div class="card remaining">
+        <span class="label">Remaining Balance</span>
+        <strong id="remainingCard">Rs 350,000</strong>
+        <div class="bar"><div id="barFill" class="bar-fill"></div></div>
+      </div>
+    </section>
+
+    <!-- Entry form -->
+    <section class="panel">
+      <h2 id="formTitle">Record Expense</h2>
+      <form id="entryForm" autocomplete="off">
+        <input type="hidden" id="entryId">
+        <div class="grid">
+          <label class="full">
+            <span>Activity Name</span>
+            <input type="text" id="activity" list="activityList" placeholder="e.g. Hotel booking, Fuel, Lunch" required>
+            <datalist id="activityList"></datalist>
+          </label>
+          <label>
+            <span>Date &amp; Time</span>
+            <input type="datetime-local" id="datetime" required>
+          </label>
+          <label>
+            <span>Price (per unit)</span>
+            <input type="number" id="price" min="0" step="0.01" placeholder="0.00" required inputmode="decimal">
+          </label>
+          <label>
+            <span>Quantity</span>
+            <input type="number" id="qty" min="1" step="1" value="1" required inputmode="numeric">
+          </label>
+          <label>
+            <span>Total Cost</span>
+            <input type="text" id="costPreview" value="Rs 0" readonly>
+          </label>
+        </div>
+        <div class="actions">
+          <button type="submit" id="submitBtn" class="btn primary">＋ Add &amp; Save</button>
+          <button type="button" id="cancelEdit" class="btn" hidden>Cancel</button>
+          <button type="button" id="exportBtn" class="btn">⬇ Download Excel</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Table -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Expense Log</h2>
+        <span id="countBadge" class="badge">0 entries</span>
+      </div>
+      <div class="table-wrap">
+        <table id="ledger">
+          <thead>
+            <tr>
+              <th>Sr No</th>
+              <th>Activity</th>
+              <th>Date &amp; Time</th>
+              <th class="num">Price</th>
+              <th class="num">Qty</th>
+              <th class="num">Cost</th>
+              <th class="num">Remaining Balance</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+        <p id="emptyMsg" class="empty">No expenses yet. Record your first expense above.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand"><span class="logo small-logo">VE</span> <span>VE L&amp;D Department Trip</span></div>
+      <p>© 2026 · Made with <span class="heart">❤</span> by <strong>Muhammad Ubaidullah</strong></p>
+    </div>
+  </footer>
+
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="common.js"></script>
+  <script src="xlsx-writer.js"></script>
+  <!-- SheetJS is only needed for the optional "Import Excel" feature -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="app.js"></script>
+</body>
+</html>

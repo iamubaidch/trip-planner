@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f766e">
+  <title>VE L&amp;D Department Trip</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="logo">VE</span>
+        <div>
+          <h1>VE L&amp;D Department Trip</h1>
+          <p class="sub">Plan · Responsibilities · Expenses</p>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="index.html">🏠 Home</a>
+        <a href="expenses.html">💸 Record Expense</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ================= Itinerary ================= -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>🗓 Trip Itinerary</h2>
+        <span class="badge">2 Days</span>
+      </div>
+
+      <div class="days">
+        <div class="day">
+          <h3><span class="day-pill">Day 1</span> Departure &amp; Stay</h3>
+          <ol class="timeline">
+            <li><span class="time">08:00 AM</span><div><strong>Departure</strong><p>Leave sharp at 8.</p></div></li>
+            <li><span class="time">On arrival</span><div><strong>Rest</strong><p>2 hours rest after arrival.</p></div></li>
+            <li><span class="time">Lunch</span><div><strong>Lunch at Alpine</strong></div></li>
+            <li><span class="time">Afternoon</span><div><strong>Enjoy the location</strong><p>Explore or rest till dinner.</p></div></li>
+            <li><span class="time">Dinner</span><div><strong>Dinner at best Shinwari</strong><p>Will decide there — maybe a bonfire 🔥</p></div></li>
+            <li><span class="time">Night</span><div><strong>Night stay</strong></div></li>
+          </ol>
+        </div>
+
+        <div class="day">
+          <h3><span class="day-pill">Day 2</span> Return Journey</h3>
+          <ol class="timeline">
+            <li><span class="time">10:00 AM</span><div><strong>Breakfast</strong><p>Breakfast by 10 AM.</p></div></li>
+            <li><span class="time">Morning</span><div><strong>Enjoy</strong><p>Free time after breakfast.</p></div></li>
+            <li><span class="time">03:00 PM</span><div><strong>Pack up</strong><p>3 PM sharp.</p></div></li>
+            <li><span class="time">05:00 PM</span><div><strong>Coffee stop</strong><p>Coffee Bean, Murree Expressway.</p></div></li>
+            <li><span class="time">07:00 PM</span><div><strong>Dinner at Monal</strong><p>Rawalpindi Saddar.</p></div></li>
+            <li><span class="time">Night</span><div><strong>Reach home</strong> 🏡</div></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Responsibilities ================= -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>👥 Activity Responsibilities</h2>
+        <button id="addRespBtn" class="btn primary small">＋ Add Activity</button>
+      </div>
+      <p class="hint" style="margin-bottom:12px">Tap ✎ to change who is responsible. Multiple people can be assigned to one activity.</p>
+
+      <div class="table-wrap">
+        <table id="respTable" class="resp-table">
+          <thead>
+            <tr>
+              <th style="width:70px">Sr No</th>
+              <th>Activity</th>
+              <th>Responsible Person(s)</th>
+              <th style="width:90px"></th>
+            </tr>
+          </thead>
+          <tbody id="respBody"></tbody>
+        </table>
+        <p id="respEmpty" class="empty" hidden>No activities yet. Add one above.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand"><span class="logo small-logo">VE</span> <span>VE L&amp;D Department Trip</span></div>
+      <p>© 2026 · Made with <span class="heart">❤</span> by <strong>Muhammad Ubaidullah</strong></p>
+    </div>
+  </footer>
+
+  <!-- Add / Edit responsibility modal -->
+  <div id="respModal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="respModalTitle">Add Activity</h2>
+        <button id="closeResp" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <form id="respForm" autocomplete="off">
+        <input type="hidden" id="respId">
+        <label>
+          <span>Activity</span>
+          <input type="text" id="respActivity" placeholder="e.g. Room Arrangement" required>
+        </label>
+        <label>
+          <span>Responsible Person(s)</span>
+          <div class="chips" id="personChips">
+            <input type="text" id="personInput" list="personList" placeholder="Type a name, press Enter or + to add">
+          </div>
+          <datalist id="personList"></datalist>
+          <small class="hint">Add as many people as needed. Tap × on a name to remove it.</small>
+        </label>
+        <div class="actions end">
+          <button type="button" id="deleteResp" class="btn danger" hidden>🗑 Delete</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="common.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
