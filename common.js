@@ -37,6 +37,9 @@ const POLL_SECONDS = 120;
 const TOMBSTONE_DAYS = 90;
 
 const nowIso = () => new Date().toISOString();
+/* Rows from before per-row sync existed. Oldest possible, so they lose every
+   conflict rather than winning one they were never part of. */
+const LEGACY_STAMP = "1970-01-01T00:00:00.000Z";
 const stamp = (v) => Date.parse(v || "") || 0;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -70,10 +73,12 @@ function loadLocal() {
       state.settingsAt = s.settingsAt || "";
       state.deleted = s.deleted && typeof s.deleted === "object" ? s.deleted : {};
       if (Array.isArray(s.entries)) state.entries = s.entries.map(normalizeEntry);
-      // Rows saved before per-row sync carry no stamp of their own. Give each one
-      // a stamp once, and persist it, so it can merge with other devices' rows.
+      // Rows saved before per-row sync carry no stamp of their own. They get the
+      // oldest possible stamp, NOT "now": a legacy row must still join the
+      // ledger, but it must never outrank a newer edit or an existing delete.
+      // Stamping them "now" is what used to resurrect deleted rows on reload.
       state.entries.forEach((e) => {
-        if (!e.updatedAt) { e.updatedAt = s.updatedAt || nowIso(); migrated = true; }
+        if (!e.updatedAt) { e.updatedAt = LEGACY_STAMP; migrated = true; }
       });
     }
   } catch {}
@@ -98,13 +103,27 @@ function saveLocal() {
 }
 const commitLocal = saveLocal;          // kept for call sites that only need a save
 
+/* A timestamp guaranteed to beat `prev`.
+   Plain "now" is not enough: if a row carries a stamp ahead of this device's
+   clock - from clock skew, or from a legacy backfill - then a delete or edit
+   stamped "now" loses the merge and the row becomes impossible to remove or
+   change. Taking max(now, prev + 1ms) makes the action you just performed
+   always outrank the version you performed it on. */
+function nextStamp(prev) {
+  return new Date(Math.max(Date.now(), stamp(prev) + 1)).toISOString();
+}
+
 /* Stamp a row as edited on this device. Every mutation goes through this,
    because the stamp decides which version of a row wins on merge. */
-function touchEntry(e) { e.updatedAt = nowIso(); return e; }
+function touchEntry(e) { e.updatedAt = nextStamp(e.updatedAt); return e; }
 
 /* Record a deletion. Without a tombstone the row simply comes back on the next
-   merge, because another device still has its copy. */
-function tombstone(id) { state.deleted[id] = nowIso(); }
+   merge, because another device still has its copy. Must be called BEFORE the
+   row is removed, so it can outrank that row's own stamp. */
+function tombstone(id) {
+  const e = state.entries.find((x) => x.id === id);
+  state.deleted[id] = nextStamp(e && e.updatedAt);
+}
 
 /* ---------------- Helpers ---------------- */
 const fmt = (n) =>

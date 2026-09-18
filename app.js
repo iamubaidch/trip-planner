@@ -140,8 +140,8 @@ $("ledgerBody").addEventListener("click", async (e) => {
   if (!btn) return;
   if (!confirm("Delete this entry?")) return;
   if ($("entryId").value === btn.dataset.id) resetForm();
+  tombstone(btn.dataset.id);        // before the filter: it reads the row's stamp
   state.entries = state.entries.filter((x) => x.id !== btn.dataset.id);
-  tombstone(btn.dataset.id);
   commitLocal();
   render();
   toast("Entry deleted");
