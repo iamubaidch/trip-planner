@@ -26,7 +26,7 @@ Runs entirely on GitHub Pages — no server needed.
 | `common.js` | Shared storage + GitHub sync |
 | `xlsx-writer.js` | Built-in Excel (.xlsx) writer, no external dependency |
 | `style.css` | Styling (mobile-first, responsive) |
-| `data.json` | Where all data is stored when GitHub sync is enabled |
+| `data.json` | The published ledger — read by every device, written by devices with a token |
 
 ## Deploy on GitHub Pages
 
@@ -38,28 +38,54 @@ Runs entirely on GitHub Pages — no server needed.
 4. After ~1 minute your app is live at  
    `https://<your-username>.github.io/trip-finance/`
 
-## How data is saved
+## How data is saved  (read this if the phone shows nothing)
 
-- **By default** entries are saved in the browser (localStorage) on the device you use.
-- **Download Excel** generates `VE_Trip_Expenses_<date>.xlsx` with two sheets:
-  - *Trip Expenses* – formatted report (opening balance, totals, full ledger)
-  - *Data* – raw rows, which you can re-import via Settings → Import Excel.
+The site is static — GitHub Pages can serve files but cannot receive them. So by
+default every entry lives in **localStorage**, which is private to one browser on
+one device. That is why data typed on a PC does not appear on a phone.
 
-### Optional: save to the GitHub repo (shared across devices)
+To share across devices, the ledger has to be written into `data.json` in the repo:
 
-GitHub Pages is static, so the page cannot write files on its own. To make every
-submission save to `data.json` in your repository:
+- **Reading needs no token.** Every device fetches `data.json` from the site on load,
+  so anyone who opens the link sees the latest published ledger.
+- **Writing needs a token,** because committing to the repo goes through the GitHub API.
+  Set it up under ⚙ **Settings → Share across devices** on the expense page.
 
-1. Create a token at <https://github.com/settings/tokens> with the **repo** scope
-   (or a fine-grained token with *Contents: Read & Write* on this repo).
-2. Open the app → ⚙ **Settings** → fill in:
-   - Repository: `your-username/trip-finance`
-   - Branch: `main`
-   - Personal Access Token
-3. Save. From now on every Add / Delete commits `data.json` to the repo, and the app
-   loads it on startup on any device where the same settings are entered.
+Which mode a device is in is shown by the pill next to "Expense Log":
 
-> The token is stored only in your browser's localStorage. Do not commit it to the repo.
+| Pill | Meaning |
+|------|---------|
+| 📴 This device only | Entries stay in this browser. Nobody else will see them. |
+| ☁ Syncing | Every add / edit / delete is committed to `data.json`. |
+
+### Setting up sync
+
+1. Create a token at <https://github.com/settings/tokens?type=beta> — **fine-grained**,
+   limited to this one repository, permission **Contents: Read & write**.
+2. Open the expense page → enter the access code → ⚙ **Settings**.
+3. Fill in Repository (`iamubaidch/trip-planner`), Branch (`main`) and the token → **Save**.
+4. The device pushes whatever it already has, and from then on syncs every change.
+
+Other devices pick it up on their next page load (GitHub Pages caches `data.json`
+for about a minute).
+
+> The token is stored only in that browser's localStorage and is never committed.
+> Anyone who can unlock that device can read it from devtools, so only add it on
+> devices you trust. Revoke it on GitHub when the trip is over.
+
+**Conflicts.** Each save stamps the ledger with a timestamp, and the newer copy wins.
+If two people record at the same moment, the later save replaces the earlier one —
+fine for one or two people recording, not a true multi-writer database.
+
+**Excel.** *Download Excel* generates `VE_Trip_Expenses_<date>.xlsx` with two sheets:
+*Trip Expenses* (formatted report) and *Data* (raw rows, re-importable via ⬆ Import Excel).
+
+### Responsibilities are code, not data
+
+The activity list is read-only on the site and is defined by `DEFAULT_RESPONSIBILITIES`
+in `common.js`. It is deliberately **not** saved or synced, so editing that array is all
+it takes to change the list everywhere — no stale copy in a browser or in `data.json`
+can override it.
 
 ## Access code (expense page)
 

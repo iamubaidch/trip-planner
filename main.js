@@ -33,4 +33,3 @@ function avatar(name) {
 /* ---------------- Init ---------------- */
 loadLocal();
 render();
-pullFromGitHub();

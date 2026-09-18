@@ -97,7 +97,7 @@ $("entryForm").addEventListener("submit", async (e) => {
   } else {
     state.entries.push({ id: uid(), ...data });
   }
-  saveLocal();
+  commitLocal();
   render();
   resetForm();
   toast(editId ? "Expense updated ✓" : "Expense saved ✓");
@@ -141,7 +141,7 @@ $("ledgerBody").addEventListener("click", async (e) => {
   if (!confirm("Delete this entry?")) return;
   if ($("entryId").value === btn.dataset.id) resetForm();
   state.entries = state.entries.filter((x) => x.id !== btn.dataset.id);
-  saveLocal();
+  commitLocal();
   render();
   toast("Entry deleted");
   await pushToGitHub();
@@ -250,7 +250,7 @@ $("importFile")?.addEventListener("change", (e) => {
       if (!imported.length) return toast("No valid rows found (use the 'Data' sheet from an export)", true);
       if (!confirm(`Import ${imported.length} entries? This replaces current data.`)) return;
       state.entries = imported;
-      saveLocal();
+      commitLocal();
       render();
       toast(`Imported ${imported.length} entries`);
       pushToGitHub();
@@ -277,33 +277,49 @@ $("closeSettings")?.addEventListener("click", () => ($("settingsModal").hidden =
 $("settingsModal")?.addEventListener("click", (e) => { if (e.target === $("settingsModal")) $("settingsModal").hidden = true; });
 
 $("saveSettings")?.addEventListener("click", async () => {
-  state.opening = parseFloat($("openingInput").value) || 0;
+  const newOpening = parseFloat($("openingInput").value) || 0;
+  const openingChanged = newOpening !== Number(state.opening);
+  state.opening = newOpening;
   cfg.currency = $("currencyInput").value.trim() || "Rs";
-  cfg.repo = $("repoInput").value.trim();
+  cfg.repo = $("repoInput").value.trim()
+    .replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
   cfg.branch = $("branchInput").value.trim() || "main";
   cfg.token = $("tokenInput").value.trim();
-  saveLocal();
+  // Only an opening-balance change is a data edit. Saving a token must NOT
+  // stamp this device as newest, or an empty phone would overwrite the repo.
+  if (openingChanged) commitLocal(); else saveLocal();
   render();
   $("settingsModal").hidden = true;
   toast("Settings saved");
-  if (cfg.repo && cfg.token) {
-    const ok = await pullFromGitHub(true);
-    if (!ok) await pushToGitHub();
-  }
+  await syncOnLoad();
+  updateSyncPill();
 });
 
 $("clearBtn")?.addEventListener("click", async () => {
   if (!confirm("Delete ALL entries? This cannot be undone.")) return;
   state.entries = [];
-  saveLocal();
+  commitLocal();
   render();
   $("settingsModal").hidden = true;
   toast("All data cleared");
   await pushToGitHub();
 });
 
+/* ---------------- Sync indicator ---------------- */
+function updateSyncPill() {
+  const pill = $("syncPill");
+  if (!pill) return;
+  const on = !!(cfg.repo && cfg.token);
+  pill.textContent = on ? "☁ Syncing" : "📴 This device only";
+  pill.className = "badge sync-pill " + (on ? "on" : "off");
+  pill.title = on
+    ? `Entries are committed to ${cfg.repo} (${cfg.branch}) and appear on every device.`
+    : "Entries stay in this browser only. Open ⚙ Settings and add a token to share them.";
+}
+
 /* ---------------- Init ---------------- */
 loadLocal();
 $("datetime").value = nowLocalInput();
 render();
-pullFromGitHub();
+updateSyncPill();
+syncOnLoad();
