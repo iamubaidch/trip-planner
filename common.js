@@ -21,9 +21,19 @@ const DEFAULT_RESPONSIBILITIES = [
 
 const freshResponsibilities = () => DEFAULT_RESPONSIBILITIES.map((r) => ({ ...r, persons: [...r.persons] }));
 
-/* Reading the published ledger needs no token, so these are baked in. */
-const DEFAULT_REPO = "iamubaidch/trip-planner";
-const DEFAULT_BRANCH = "main";
+/* ---- Where the shared ledger lives ---------------------------------
+   One JSON document in a JSONBin.io bin. Every device uses these, so
+   there is nothing to set up per device. Both can be overridden per
+   device in Settings if they ever change.
+   Create the bin at jsonbin.io, then paste its Bin ID here, and an
+   Access Key that has Read + Update rights (not Delete or List).    */
+const BIN_ID = "6aad94aaffd5d16053172b87";
+const BIN_KEY = "$2a$10$9c1aiW4/jamZlF6SaEh2BOlFzUYh77qgqXYKQ19TwuvKeCKUqWYOu";
+
+/* Seconds between background checks. Deliberately slow - JSONBin's free
+   tier counts every request. Switching back to the tab syncs instantly. */
+const POLL_SECONDS = 120;
+
 const TOMBSTONE_DAYS = 90;
 
 const nowIso = () => new Date().toISOString();
@@ -32,8 +42,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 
 /* state.deleted is a map of { entryId: deletedAtIso } — see mergeLedger */
 let state = { opening: 350000, entries: [], deleted: {}, settingsAt: "", responsibilities: freshResponsibilities() };
-let cfg = { currency: "Rs", repo: DEFAULT_REPO, branch: DEFAULT_BRANCH, token: "" };
-let fileSha = null;
+let cfg = { currency: "Rs", binId: "", binKey: "" };
 let syncing = false;
 
 /* ---------------- Persistence ----------------
@@ -72,8 +81,6 @@ function loadLocal() {
     const c = JSON.parse(localStorage.getItem(CFG_KEY));
     if (c) cfg = { ...cfg, ...c };
   } catch {}
-  if (!cfg.repo) cfg.repo = DEFAULT_REPO;
-  if (!cfg.branch) cfg.branch = DEFAULT_BRANCH;
   state.responsibilities = freshResponsibilities();
   if (migrated) saveLocal();
 }
@@ -185,99 +192,125 @@ const fileFrom = (l) => ({
   entries: l.entries, deleted: l.deleted, updatedAt: nowIso(),
 });
 
-/* ---------------- Transport ---------------- */
-function ghUrl() {
-  return `https://api.github.com/repos/${cfg.repo}/contents/data.json?ref=${encodeURIComponent(cfg.branch)}`;
-}
-function ghHeaders() {
-  return { Authorization: `Bearer ${cfg.token}`, Accept: "application/vnd.github+json" };
-}
-function b64(str) { return btoa(unescape(encodeURIComponent(str))); }
-function unb64(str) { return decodeURIComponent(escape(atob(str.replace(/[^A-Za-z0-9+/=]/g, "")))); }
+/* ---------------- Transport: JSONBin.io ----------------
+   The ledger is one JSON document in a bin. Reads are a GET, writes a PUT.
+   JSONBin has no locking and no conditional write, so a save is
+   read -> merge -> write -> read back and verify, retrying if another
+   device wrote in between. That closes the race in practice.
+   ------------------------------------------------------------------ */
+const BIN_BASE = "https://api.jsonbin.io/v3/b";
+let lastSyncMsg = "";
 
-/* Read the published ledger. With a token we use the API, which also returns the
-   sha needed to write. Without one we read raw.githubusercontent, which reflects
-   a commit within seconds — the Pages copy waits for a site rebuild. */
-async function readRemote() {
-  if (cfg.repo && cfg.token) {
-    try {
-      const res = await fetch(ghUrl(), { headers: ghHeaders(), cache: "no-store" });
-      if (res.status === 404) { fileSha = null; return { data: {}, sha: null }; }
-      if (!res.ok) throw new Error("GitHub " + res.status);
-      const j = await res.json();
-      fileSha = j.sha;
-      return { data: JSON.parse(unb64(j.content)), sha: j.sha };
-    } catch { return null; }
+const binId  = () => (cfg.binId  || BIN_ID  || "").trim();
+const binKey = () => (cfg.binKey || BIN_KEY || "").trim();
+const binReady = () => !!binId();
+
+function setSyncStatus(msg, kind) {
+  lastSyncMsg = msg || "";
+  const el = $("syncStatus");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "hint" + (kind ? " " + kind : "");
+}
+
+async function binError(res) {
+  let detail = "";
+  try { detail = (await res.clone().json()).message || ""; } catch {}
+  if (res.status === 401 || res.status === 403)
+    return `Access key rejected (${res.status}). Check the key, and that it has Read and Update rights on this bin.`;
+  if (res.status === 404) return "Bin not found (404). Check the Bin ID.";
+  if (res.status === 429) return "JSONBin rate limit reached. It will retry shortly.";
+  return `JSONBin ${res.status}` + (detail ? ": " + detail : "");
+}
+
+async function apiGet() {
+  if (!binReady()) { setSyncStatus("No bin configured. Open Settings and add the Bin ID.", "err"); return null; }
+  try {
+    const headers = { "X-Bin-Meta": "false" };
+    if (binKey()) headers["X-Access-Key"] = binKey();
+    const res = await fetch(`${BIN_BASE}/${binId()}/latest?t=${Date.now()}`, { headers, cache: "no-store" });
+    if (!res.ok) throw new Error(await binError(res));
+    const j = await res.json();
+    // With X-Bin-Meta:false the body IS the record; older replies wrap it.
+    return j && j.record ? j.record : j || {};
+  } catch (err) {
+    setSyncStatus("Cannot read the data: " + err.message, "err");
+    return null;
   }
-  const urls = [];
-  if (cfg.repo) urls.push(`https://raw.githubusercontent.com/${cfg.repo}/${cfg.branch}/data.json?t=${Date.now()}`);
-  urls.push(`data.json?t=${Date.now()}`);
-  for (const u of urls) {
-    try { const r = await fetch(u, { cache: "no-store" }); if (r.ok) return { data: await r.json(), sha: null }; } catch {}
+}
+
+async function apiPut(ledger) {
+  if (!binReady()) { setSyncStatus("No bin configured. Open Settings and add the Bin ID.", "err"); return false; }
+  try {
+    const res = await fetch(`${BIN_BASE}/${binId()}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Access-Key": binKey(),
+        "X-Bin-Versioning": "false",   // overwrite in place, do not pile up versions
+      },
+      body: JSON.stringify(ledger),
+    });
+    if (!res.ok) throw new Error(await binError(res));
+    return true;
+  } catch (err) {
+    setSyncStatus("Could not save: " + err.message, "err");
+    return false;
   }
-  return null;
 }
 
-async function putGitHub(body) {
-  return fetch(`https://api.github.com/repos/${cfg.repo}/contents/data.json`, {
-    method: "PUT",
-    headers: { ...ghHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
+/* True when `outer` already contains everything in `inner` - used to confirm
+   our write survived, rather than trusting the PUT blindly. */
+const contains = (outer, inner) => sig(mergeLedger(outer, inner)) === sig(outer);
 
-/* Publish = re-read, merge, write. Never a blind overwrite, so a row added on
-   another device between our read and our write is not lost. */
-async function pushToGitHub(quiet = false) {
-  if (!cfg.repo || !cfg.token) return false;
+async function publish(quiet = false) {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const remote = await readRemote();
-    if (!remote) { if (!quiet) toast("Sync failed: cannot reach GitHub", true); return false; }
-    const merged = mergeLedger(remote.data || {}, localLedger());
+    const remote = await apiGet();
+    if (!remote) { if (!quiet) toast(lastSyncMsg || "Save failed", true); return false; }
+
+    const merged = mergeLedger(remote, localLedger());
     applyMerged(merged);
-    if (sig(merged) === sig(remote.data || {})) return true;   // nothing new to write
-    const body = {
-      message: `Update trip data (${nowIso()})`,
-      content: b64(JSON.stringify(fileFrom(merged), null, 2)),
-      branch: cfg.branch,
-    };
-    if (remote.sha) body.sha = remote.sha;
-    const res = await putGitHub(body);
-    if (res.ok) {
-      fileSha = (await res.json()).content.sha;
-      if (!quiet) toast("Synced ✓ all devices will show this");
+    if (contains(remote, merged)) {            // nothing of ours is missing
+      setSyncStatus("Up to date · checked " + new Date().toLocaleTimeString() + ".", "ok");
       return true;
     }
-    // 409/422 = another device committed first. Loop: read again, merge, retry.
-    if (res.status !== 409 && res.status !== 422) {
-      if (!quiet) toast("Sync failed: GitHub " + res.status, true);
-      return false;
+    if (!(await apiPut(merged))) { if (!quiet) toast(lastSyncMsg, true); return false; }
+
+    const after = await apiGet();
+    if (!after || contains(after, merged)) {
+      setSyncStatus("Saved at " + new Date().toLocaleTimeString() + ".", "ok");
+      if (!quiet) toast("Saved ✓ your other devices will show this");
+      return true;
     }
+    // Another device overwrote us between our read and our write. Merge again.
   }
-  if (!quiet) toast("Sync busy, will retry shortly", true);
+  setSyncStatus("Another device kept saving at the same time. Will retry.", "err");
+  if (!quiet) toast("Busy - will retry shortly", true);
   return false;
 }
 
-/* Pull what others published, merge it in, then publish anything of ours that
-   is missing from the file. */
+/* Read, merge, and push back anything the bin is missing. */
 async function syncNow(quiet = true) {
   if (syncing) return;
   syncing = true;
   try {
-    const remote = await readRemote();
+    const remote = await apiGet();
     if (!remote) return;
-    const merged = mergeLedger(remote.data || {}, localLedger());
-    const changed = sig(merged) !== sig(remote.data || {});
+    const merged = mergeLedger(remote, localLedger());
+    const weHaveMore = !contains(remote, merged);
     applyMerged(merged);
-    if (changed && cfg.token) await pushToGitHub(quiet);
+    if (weHaveMore) await publish(quiet);
+    else setSyncStatus("Up to date · checked " + new Date().toLocaleTimeString() + ".", "ok");
   } finally {
     syncing = false;
   }
 }
 const syncOnLoad = () => syncNow(true);
 
-/* Keep devices converged without anyone pressing refresh. */
-function startAutoSync(seconds = 45) {
+/* Polling is deliberately slow: JSONBin's free tier counts every request,
+   and a fast poll would burn the monthly allowance for nothing. Switching
+   back to the tab or regaining signal syncs immediately anyway. */
+function startAutoSync(seconds = POLL_SECONDS) {
   const tick = () => { if (document.visibilityState === "visible") syncNow(true); };
   setInterval(tick, seconds * 1000);
   document.addEventListener("visibilitychange", tick);

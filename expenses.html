@@ -142,33 +142,28 @@
 
       <hr>
 
-      <h3>Share across devices <small>— sync to GitHub</small></h3>
+      <h3>Shared data <small>— JSON store</small></h3>
       <p class="hint">
-        Without this, entries stay in this browser only. Fill it in and every expense is
-        committed to <code>data.json</code> in your repo, so any phone that opens the
-        site link sees the same ledger.
+        Expenses are kept as one JSON document shared by all your devices, so each one
+        shows the same ledger. This is set up already; the boxes below are only needed
+        if the bin ever changes.
       </p>
       <label>
-        <span>Repository</span>
-        <input type="text" id="repoInput" placeholder="iamubaidch/trip-planner" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <span>Bin ID <small>(optional override)</small></span>
+        <input type="text" id="binInput" placeholder="use the built-in bin"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
       </label>
       <label>
-        <span>Branch</span>
-        <input type="text" id="branchInput" placeholder="main" autocapitalize="off" autocorrect="off" spellcheck="false">
-      </label>
-      <label>
-        <span>Personal Access Token</span>
-        <input type="password" id="tokenInput" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <small class="hint">
-          Create one at <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a>
-          — fine-grained, this repo only, <strong>Contents: Read &amp; write</strong>.
-          It is stored only in this browser and is never committed. Only add it on devices you trust.
-        </small>
+        <span>Access Key <small>(optional override)</small></span>
+        <input type="password" id="keyInput" placeholder="use the built-in key"
+               autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <small class="hint">Leave both empty to use the values built into the app.</small>
       </label>
       <p id="syncStatus" class="hint"></p>
 
       <div class="actions">
         <button type="button" id="saveSettings" class="btn primary">Save</button>
+        <button type="button" id="testSync" class="btn">🔌 Test connection</button>
         <button type="button" id="clearBtn" class="btn danger">🗑 Delete all entries</button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 /* ============================================================
    app.js — Expense tracker (requires common.js + xlsx-writer.js)
-   - Entries stored in localStorage (works fully offline / static)
-   - Optional GitHub sync: writes data.json to your repo via API
+   - Entries are held in localStorage, so the page works offline
+   - Shared across devices through the JSON bin (see common.js)
    - Export to a formatted .xlsx (built-in writer), import back via SheetJS
    ============================================================ */
 
@@ -101,7 +101,7 @@ $("entryForm").addEventListener("submit", async (e) => {
   render();
   resetForm();
   toast(editId ? "Expense updated ✓" : "Expense saved ✓");
-  await pushToGitHub();
+  await publish(true);
 });
 
 function resetForm() {
@@ -145,7 +145,7 @@ $("ledgerBody").addEventListener("click", async (e) => {
   commitLocal();
   render();
   toast("Entry deleted");
-  await pushToGitHub();
+  await publish(true);
 });
 
 ["price", "qty"].forEach((id) => $(id).addEventListener("input", updateCostPreview));
@@ -256,7 +256,7 @@ $("importFile")?.addEventListener("change", (e) => {
       commitLocal();
       render();
       toast(`Imported ${imported.length} entries`);
-      pushToGitHub();
+      publish(true);
     } catch (err) {
       toast("Could not read file", true);
     }
@@ -269,11 +269,11 @@ $("importFile")?.addEventListener("change", (e) => {
 $("settingsBtn")?.addEventListener("click", () => {
   $("openingInput").value = state.opening;
   $("currencyInput").value = cfg.currency;
-  $("repoInput").value = cfg.repo;
-  $("branchInput").value = cfg.branch;
-  $("tokenInput").value = cfg.token;
-  const st = $("syncStatus");
-  if (st) { st.textContent = cfg.repo && cfg.token ? "Sync configured." : "Sync not configured (local-only mode)."; st.className = "hint"; }
+  $("binInput").value = cfg.binId || "";
+  $("keyInput").value = cfg.binKey || "";
+  // Keep the last real sync message on screen; it is the thing worth reading.
+  if (lastSyncMsg) setSyncStatus(lastSyncMsg, /^(Saved|Up to date|Connected)/.test(lastSyncMsg) ? "ok" : "err");
+  else setSyncStatus(binReady() ? "Connected to the shared ledger." : "No bin set - this device is offline-only.", "");
   $("settingsModal").hidden = false;
 });
 $("closeSettings")?.addEventListener("click", () => ($("settingsModal").hidden = true));
@@ -286,10 +286,8 @@ $("saveSettings")?.addEventListener("click", async () => {
   const currencyChanged = newCurrency !== cfg.currency;
   state.opening = newOpening;
   cfg.currency = newCurrency;
-  cfg.repo = $("repoInput").value.trim()
-    .replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
-  cfg.branch = $("branchInput").value.trim() || "main";
-  cfg.token = $("tokenInput").value.trim();
+  cfg.binId = $("binInput").value.trim();
+  cfg.binKey = $("keyInput").value.trim();
   // Opening balance and currency are single shared values: stamp them only when
   // they actually change, so saving a token does not override another device.
   if (openingChanged || currencyChanged) state.settingsAt = nowIso();
@@ -297,7 +295,17 @@ $("saveSettings")?.addEventListener("click", async () => {
   render();
   $("settingsModal").hidden = true;
   toast("Settings saved");
-  await syncOnLoad();
+  await syncNow(false);
+  updateSyncPill();
+});
+
+/* A real end-to-end write test, because only an actual commit proves the token
+   has write access - reading works even with a read-only token. */
+$("testSync")?.addEventListener("click", async () => {
+  if (!binReady()) return setSyncStatus("Add the Bin ID first, then Save.", "err");
+  setSyncStatus("Testing…", "");
+  const data = await apiGet();
+  if (data) setSyncStatus(`Connected. The bin currently holds ${(data.entries || []).length} row(s).`, "ok");
   updateSyncPill();
 });
 
@@ -309,19 +317,19 @@ $("clearBtn")?.addEventListener("click", async () => {
   render();
   $("settingsModal").hidden = true;
   toast("All data cleared");
-  await pushToGitHub();
+  await publish(true);
 });
 
 /* ---------------- Sync indicator ---------------- */
 function updateSyncPill() {
   const pill = $("syncPill");
   if (!pill) return;
-  const on = !!(cfg.repo && cfg.token);
-  pill.textContent = on ? "☁ Syncing" : "📴 This device only";
+  const on = binReady();
+  pill.textContent = on ? "☁ Shared" : "📴 This device only";
   pill.className = "badge sync-pill " + (on ? "on" : "off");
   pill.title = on
-    ? `Entries are committed to ${cfg.repo} (${cfg.branch}) and appear on every device.`
-    : "Entries stay in this browser only. Open ⚙ Settings and add a token to share them.";
+    ? "Entries are saved to the shared ledger and appear on all your devices."
+    : "No bin set, so entries stay in this browser. Open ⚙ Settings to add it.";
 }
 
 /* ---------------- Init ---------------- */
@@ -330,4 +338,4 @@ $("datetime").value = nowLocalInput();
 render();
 updateSyncPill();
 syncOnLoad();
-startAutoSync(45);
+startAutoSync();

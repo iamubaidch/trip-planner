@@ -26,7 +26,7 @@ Runs entirely on GitHub Pages — no server needed.
 | `common.js` | Shared storage + GitHub sync |
 | `xlsx-writer.js` | Built-in Excel (.xlsx) writer, no external dependency |
 | `style.css` | Styling (mobile-first, responsive) |
-| `data.json` | The published ledger — merged row by row across devices |
+| `apps-script/Code.gs` | Unused. An alternative Google Sheet backend, kept in case you switch |
 
 ## Deploy on GitHub Pages
 
@@ -38,65 +38,56 @@ Runs entirely on GitHub Pages — no server needed.
 4. After ~1 minute your app is live at  
    `https://<your-username>.github.io/trip-finance/`
 
-## How data is saved  (read this if the phone shows nothing)
+## How data is saved  (read this if a device shows nothing)
 
-The site is static — GitHub Pages can serve files but cannot receive them. So by
-default every entry lives in **localStorage**, which is private to one browser on
-one device. That is why data typed on a PC does not appear on a phone.
+The ledger is one **JSON document** in a [JSONBin.io](https://jsonbin.io) bin, shared by
+every device. Nothing is ever stored as Excel — the *Download Excel* button builds the
+`.xlsx` in your browser from the current data, so the file is always a snapshot, never
+the source of truth.
 
-To share across devices, the ledger has to be written into `data.json` in the repo:
+```
+device  ──GET──>  JSON bin  <──PUT──  device
+                  (one document, merged row by row)
+```
 
-- **Reading needs no token.** Every device fetches the published ledger on load. It reads
-  `raw.githubusercontent.com` first, which reflects a commit within seconds; the copy served
-  by Pages is the fallback and waits for a site rebuild.
-- **Writing needs a token,** because committing to the repo goes through the GitHub API.
-  Set it up under ⚙ **Settings → Share across devices** on the expense page.
+- **Rows merge individually.** Two rows from your laptop and two from your phone all
+  survive — rows are matched by id, not by overwriting the file.
+- **Deletes stay deleted,** via tombstones, so a device that still has the row cannot
+  bring it back.
+- **Offline is safe.** Rows recorded with no signal are held locally and published on
+  reconnect.
+- **Auto-refresh** every 120 seconds while the page is visible, and immediately when you
+  switch back to the tab or regain connectivity.
+- A local copy is kept in the browser, so the page still works with no connection.
 
-Which mode a device is in is shown by the pill next to "Expense Log":
+### Setting it up
 
-| Pill | Meaning |
-|------|---------|
-| 📴 This device only | Entries stay in this browser. Nobody else will see them. |
-| ☁ Syncing | Every add / edit / delete is committed to `data.json`. |
+1. Create a free account at [jsonbin.io](https://jsonbin.io).
+2. Create a bin whose content is `{}` and copy its **Bin ID**.
+3. Create an **Access Key** with **Read** and **Update** rights only (not Delete, not List).
+4. Put both into `BIN_ID` and `BIN_KEY` at the top of `common.js`.
 
-### Setting up sync
+A device can override either in ⚙ Settings, but normally nobody needs to — the built-in
+values are used automatically, so a new phone just opens the link and works.
 
-1. Create a token at <https://github.com/settings/tokens?type=beta> — **fine-grained**,
-   limited to this one repository, permission **Contents: Read & write**.
-2. Open the expense page → enter the access code → ⚙ **Settings**.
-3. Fill in Repository (`iamubaidch/trip-planner`), Branch (`main`) and the token → **Save**.
-4. The device pushes whatever it already has, and from then on syncs every change.
+> The Bin ID and key are in the site's public JavaScript. That is the price of zero setup
+> per device: anyone who reads the page source could write to the bin. Keep the key
+> limited to Read + Update so it cannot delete the bin, and revoke it when the trip ends.
 
-Other devices pick it up on their next page load (GitHub Pages caches `data.json`
-for about a minute).
+**Concurrency caveat.** JSONBin has no server-side lock and no conditional write, so a
+save is read → merge → write → **read back and verify**, retrying if another device wrote
+in between. That covers the realistic cases and is tested, but it is not as airtight as a
+real database transaction.
 
-> The token is stored only in that browser's localStorage and is never committed.
-> Anyone who can unlock that device can read it from devtools, so only add it on
-> devices you trust. Revoke it on GitHub when the trip is over.
-
-**Every device can record.** The ledger is merged **row by row**, not file by file,
-so three people can each add their own expenses and all of them survive. Each row
-carries its own id and edit stamp; a save re-reads the file, merges, and writes the
-combined result, retrying if someone commits in between. Deletes leave a tombstone so
-a removed row does not reappear from a device that still had a copy. The only real
-conflict is the *same row* edited on two devices at once, where the newer edit wins.
-
-**Offline is safe.** A device with no signal keeps its rows locally and publishes them
-the next time it reaches GitHub. Nothing is lost and nothing overwrites anyone else.
-
-**Auto-refresh.** Each device re-syncs every 45 seconds while the page is visible, and
-immediately when you switch back to the tab or regain connectivity — so you rarely need
-to pull-to-refresh.
-
-**Excel.** *Download Excel* generates `VE_Trip_Expenses_<date>.xlsx` with two sheets:
-*Trip Expenses* (formatted report) and *Data* (raw rows, re-importable via ⬆ Import Excel).
+**Request budget.** The free tier counts every request. Polling is deliberately slow for
+that reason; a full two-day trip is well within the allowance, but don't leave the page
+open and visible for days on end.
 
 ### Responsibilities are code, not data
 
 The activity list is read-only on the site and is defined by `DEFAULT_RESPONSIBILITIES`
-in `common.js`. It is deliberately **not** saved or synced, so editing that array is all
-it takes to change the list everywhere — no stale copy in a browser or in `data.json`
-can override it.
+in `common.js`. It is deliberately not saved or synced, so editing that array changes the
+list everywhere.
 
 ## Access code (expense page)
 
