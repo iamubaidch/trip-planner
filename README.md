@@ -26,7 +26,7 @@ Runs entirely on GitHub Pages — no server needed.
 | `common.js` | Shared storage + GitHub sync |
 | `xlsx-writer.js` | Built-in Excel (.xlsx) writer, no external dependency |
 | `style.css` | Styling (mobile-first, responsive) |
-| `data.json` | The published ledger — read by every device, written by devices with a token |
+| `data.json` | The published ledger — merged row by row across devices |
 
 ## Deploy on GitHub Pages
 
@@ -46,8 +46,9 @@ one device. That is why data typed on a PC does not appear on a phone.
 
 To share across devices, the ledger has to be written into `data.json` in the repo:
 
-- **Reading needs no token.** Every device fetches `data.json` from the site on load,
-  so anyone who opens the link sees the latest published ledger.
+- **Reading needs no token.** Every device fetches the published ledger on load. It reads
+  `raw.githubusercontent.com` first, which reflects a commit within seconds; the copy served
+  by Pages is the fallback and waits for a site rebuild.
 - **Writing needs a token,** because committing to the repo goes through the GitHub API.
   Set it up under ⚙ **Settings → Share across devices** on the expense page.
 
@@ -73,9 +74,19 @@ for about a minute).
 > Anyone who can unlock that device can read it from devtools, so only add it on
 > devices you trust. Revoke it on GitHub when the trip is over.
 
-**Conflicts.** Each save stamps the ledger with a timestamp, and the newer copy wins.
-If two people record at the same moment, the later save replaces the earlier one —
-fine for one or two people recording, not a true multi-writer database.
+**Every device can record.** The ledger is merged **row by row**, not file by file,
+so three people can each add their own expenses and all of them survive. Each row
+carries its own id and edit stamp; a save re-reads the file, merges, and writes the
+combined result, retrying if someone commits in between. Deletes leave a tombstone so
+a removed row does not reappear from a device that still had a copy. The only real
+conflict is the *same row* edited on two devices at once, where the newer edit wins.
+
+**Offline is safe.** A device with no signal keeps its rows locally and publishes them
+the next time it reaches GitHub. Nothing is lost and nothing overwrites anyone else.
+
+**Auto-refresh.** Each device re-syncs every 45 seconds while the page is visible, and
+immediately when you switch back to the tab or regain connectivity — so you rarely need
+to pull-to-refresh.
 
 **Excel.** *Download Excel* generates `VE_Trip_Expenses_<date>.xlsx` with two sheets:
 *Trip Expenses* (formatted report) and *Data* (raw rows, re-importable via ⬆ Import Excel).

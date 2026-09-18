@@ -93,9 +93,9 @@ $("entryForm").addEventListener("submit", async (e) => {
 
   if (editId) {
     const ex = state.entries.find((x) => x.id === editId);
-    if (ex) Object.assign(ex, data);
+    if (ex) touchEntry(Object.assign(ex, data));
   } else {
-    state.entries.push({ id: uid(), ...data });
+    state.entries.push(touchEntry({ id: uid(), ...data }));
   }
   commitLocal();
   render();
@@ -141,6 +141,7 @@ $("ledgerBody").addEventListener("click", async (e) => {
   if (!confirm("Delete this entry?")) return;
   if ($("entryId").value === btn.dataset.id) resetForm();
   state.entries = state.entries.filter((x) => x.id !== btn.dataset.id);
+  tombstone(btn.dataset.id);
   commitLocal();
   render();
   toast("Entry deleted");
@@ -249,7 +250,9 @@ $("importFile")?.addEventListener("change", (e) => {
         }));
       if (!imported.length) return toast("No valid rows found (use the 'Data' sheet from an export)", true);
       if (!confirm(`Import ${imported.length} entries? This replaces current data.`)) return;
-      state.entries = imported;
+      const keep = new Set(imported.map((r) => r.id));
+      state.entries.forEach((e) => { if (!keep.has(e.id)) tombstone(e.id); });
+      state.entries = imported.map(touchEntry);
       commitLocal();
       render();
       toast(`Imported ${imported.length} entries`);
@@ -278,16 +281,19 @@ $("settingsModal")?.addEventListener("click", (e) => { if (e.target === $("setti
 
 $("saveSettings")?.addEventListener("click", async () => {
   const newOpening = parseFloat($("openingInput").value) || 0;
+  const newCurrency = $("currencyInput").value.trim() || "Rs";
   const openingChanged = newOpening !== Number(state.opening);
+  const currencyChanged = newCurrency !== cfg.currency;
   state.opening = newOpening;
-  cfg.currency = $("currencyInput").value.trim() || "Rs";
+  cfg.currency = newCurrency;
   cfg.repo = $("repoInput").value.trim()
     .replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
   cfg.branch = $("branchInput").value.trim() || "main";
   cfg.token = $("tokenInput").value.trim();
-  // Only an opening-balance change is a data edit. Saving a token must NOT
-  // stamp this device as newest, or an empty phone would overwrite the repo.
-  if (openingChanged) commitLocal(); else saveLocal();
+  // Opening balance and currency are single shared values: stamp them only when
+  // they actually change, so saving a token does not override another device.
+  if (openingChanged || currencyChanged) state.settingsAt = nowIso();
+  saveLocal();
   render();
   $("settingsModal").hidden = true;
   toast("Settings saved");
@@ -297,6 +303,7 @@ $("saveSettings")?.addEventListener("click", async () => {
 
 $("clearBtn")?.addEventListener("click", async () => {
   if (!confirm("Delete ALL entries? This cannot be undone.")) return;
+  state.entries.forEach((e) => tombstone(e.id));
   state.entries = [];
   commitLocal();
   render();
@@ -323,3 +330,4 @@ $("datetime").value = nowLocalInput();
 render();
 updateSyncPill();
 syncOnLoad();
+startAutoSync(45);
