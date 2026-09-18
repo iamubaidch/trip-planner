@@ -227,8 +227,8 @@ $("exportBtn").addEventListener("click", () => {
   toast("Excel downloaded");
 });
 
-/* ---------------- Excel Import ---------------- */
-$("importFile").addEventListener("change", (e) => {
+/* ---------------- Excel Import (optional UI — guarded) ---------------- */
+$("importFile")?.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (typeof XLSX === "undefined") { toast("Import needs internet (Excel reader library not loaded)", true); e.target.value = ""; return; }
@@ -262,21 +262,21 @@ $("importFile").addEventListener("change", (e) => {
   reader.readAsArrayBuffer(file);
 });
 
-/* ---------------- Settings ---------------- */
-$("settingsBtn").addEventListener("click", () => {
+/* ---------------- Settings (optional UI — guarded) ---------------- */
+$("settingsBtn")?.addEventListener("click", () => {
   $("openingInput").value = state.opening;
   $("currencyInput").value = cfg.currency;
   $("repoInput").value = cfg.repo;
   $("branchInput").value = cfg.branch;
   $("tokenInput").value = cfg.token;
-  $("syncStatus").textContent = cfg.repo && cfg.token ? "Sync configured." : "Sync not configured (local-only mode).";
-  $("syncStatus").className = "hint";
+  const st = $("syncStatus");
+  if (st) { st.textContent = cfg.repo && cfg.token ? "Sync configured." : "Sync not configured (local-only mode)."; st.className = "hint"; }
   $("settingsModal").hidden = false;
 });
-$("closeSettings").addEventListener("click", () => ($("settingsModal").hidden = true));
-$("settingsModal").addEventListener("click", (e) => { if (e.target === $("settingsModal")) $("settingsModal").hidden = true; });
+$("closeSettings")?.addEventListener("click", () => ($("settingsModal").hidden = true));
+$("settingsModal")?.addEventListener("click", (e) => { if (e.target === $("settingsModal")) $("settingsModal").hidden = true; });
 
-$("saveSettings").addEventListener("click", async () => {
+$("saveSettings")?.addEventListener("click", async () => {
   state.opening = parseFloat($("openingInput").value) || 0;
   cfg.currency = $("currencyInput").value.trim() || "Rs";
   cfg.repo = $("repoInput").value.trim();
@@ -292,7 +292,7 @@ $("saveSettings").addEventListener("click", async () => {
   }
 });
 
-$("clearBtn").addEventListener("click", async () => {
+$("clearBtn")?.addEventListener("click", async () => {
   if (!confirm("Delete ALL entries? This cannot be undone.")) return;
   state.entries = [];
   saveLocal();

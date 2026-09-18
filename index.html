@@ -65,9 +65,9 @@
     <section class="panel">
       <div class="panel-head">
         <h2>👥 Activity Responsibilities</h2>
-        <button id="addRespBtn" class="btn primary small">＋ Add Activity</button>
+        <span class="badge">🔒 View only</span>
       </div>
-      <p class="hint" style="margin-bottom:12px">Tap ✎ to change who is responsible. Multiple people can be assigned to one activity.</p>
+      <p class="hint" style="margin-bottom:12px">This list is fixed. Activities cannot be added, edited or deleted here.</p>
 
       <div class="table-wrap">
         <table id="respTable" class="resp-table">
@@ -76,12 +76,11 @@
               <th style="width:70px">Sr No</th>
               <th>Activity</th>
               <th>Responsible Person(s)</th>
-              <th style="width:90px"></th>
             </tr>
           </thead>
           <tbody id="respBody"></tbody>
         </table>
-        <p id="respEmpty" class="empty" hidden>No activities yet. Add one above.</p>
+        <p id="respEmpty" class="empty" hidden>No activities to show.</p>
       </div>
     </section>
 
@@ -93,35 +92,6 @@
       <p>© 2026 · Made with <span class="heart">❤</span> by <strong>Muhammad Ubaidullah</strong></p>
     </div>
   </footer>
-
-  <!-- Add / Edit responsibility modal -->
-  <div id="respModal" class="modal" hidden>
-    <div class="modal-box">
-      <div class="modal-head">
-        <h2 id="respModalTitle">Add Activity</h2>
-        <button id="closeResp" class="icon-btn" aria-label="Close">✕</button>
-      </div>
-      <form id="respForm" autocomplete="off">
-        <input type="hidden" id="respId">
-        <label>
-          <span>Activity</span>
-          <input type="text" id="respActivity" placeholder="e.g. Room Arrangement" required>
-        </label>
-        <label>
-          <span>Responsible Person(s)</span>
-          <div class="chips" id="personChips">
-            <input type="text" id="personInput" list="personList" placeholder="Type a name, press Enter or + to add">
-          </div>
-          <datalist id="personList"></datalist>
-          <small class="hint">Add as many people as needed. Tap × on a name to remove it.</small>
-        </label>
-        <div class="actions end">
-          <button type="button" id="deleteResp" class="btn danger" hidden>🗑 Delete</button>
-          <button type="submit" class="btn primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <div id="toast" class="toast" hidden></div>
 

@@ -3,9 +3,11 @@
 A mobile-responsive trip site with two pages:
 
 - **Home (`index.html`)** – the trip itinerary (Day 1 / Day 2) and the list of activity
-  responsibilities. Each activity can have one or many responsible persons and can be
-  added, edited or deleted at any time.
-- **Record Expense (`expenses.html`)** – expense ledger starting from an opening balance
+  responsibilities. This page is **view only**: activities cannot be added, edited or
+  deleted from the browser.
+- **Record Expense (`expenses.html`)** – **protected by an access code**. The page shows a
+  lock screen first and only loads the ledger once the correct code is entered.
+  Expense ledger starting from an opening balance
   (default **350,000**): Sr No, activity, date/time, price, qty, cost and remaining balance.
   Entries can be edited/deleted, and a formatted Excel (.xlsx) can be downloaded.
   Settings (⚙) for currency, opening balance and GitHub sync live on this page.
@@ -18,7 +20,8 @@ Runs entirely on GitHub Pages — no server needed.
 |------|---------|
 | `index.html` | Home – itinerary + responsibilities |
 | `expenses.html` | Expense tracker |
-| `main.js` | Responsibilities logic (multi-person add/edit) |
+| `main.js` | Responsibilities rendering (read-only) |
+| `gate.js` | Access-code lock screen for the expense page |
 | `app.js` | Expense logic, Excel export/import |
 | `common.js` | Shared storage + GitHub sync |
 | `xlsx-writer.js` | Built-in Excel (.xlsx) writer, no external dependency |
@@ -57,6 +60,16 @@ submission save to `data.json` in your repository:
    loads it on startup on any device where the same settings are entered.
 
 > The token is stored only in your browser's localStorage. Do not commit it to the repo.
+
+## Access code (expense page)
+
+`expenses.html` stays locked until the access code is entered. The unlock lasts for the
+current browser tab session (closing the tab or browser locks it again).
+
+To change the code, edit `ACCESS_CODE` at the top of `gate.js`.
+
+> This is a front-end gate meant to keep casual viewers out. Anyone who opens the page
+> source can read the code, so don't treat it as real security.
 
 ## Change the opening balance / currency
 

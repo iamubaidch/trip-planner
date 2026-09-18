@@ -7,7 +7,7 @@
   <title>Record Expense · VE L&amp;D Department Trip</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="locked">
 
   <header class="topbar">
     <div class="topbar-inner">
@@ -116,12 +116,32 @@
   </footer>
 
 
+  <!-- Access code gate -->
+  <div id="lockScreen" class="lock">
+    <div class="lock-box" id="lockBox">
+      <div class="lock-icon">🔒</div>
+      <h2>Restricted Area</h2>
+      <p class="hint">Enter the access code to open the expense records.</p>
+      <form id="lockForm" autocomplete="off">
+        <input type="password" id="accessCode" class="code-input" inputmode="numeric"
+               maxlength="6" placeholder="••••••"
+               aria-label="Access code" autocomplete="off" required>
+        <p id="lockError" class="lock-error" hidden>⚠ Incorrect access code. Access denied.</p>
+        <div class="lock-actions">
+          <button type="submit" class="btn primary">🔓 Unlock</button>
+          <a href="index.html" class="btn">← Back to Home</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="common.js"></script>
   <script src="xlsx-writer.js"></script>
   <!-- SheetJS is only needed for the optional "Import Excel" feature -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-  <script src="app.js"></script>
+  <!-- gate.js loads app.js only after the correct access code is entered -->
+  <script src="gate.js"></script>
 </body>
 </html>

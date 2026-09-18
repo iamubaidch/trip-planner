@@ -10,12 +10,13 @@ const $ = (id) => document.getElementById(id);
 const DEFAULT_RESPONSIBILITIES = [
   { id: "r1", activity: "Finance Management", persons: ["Sir Faraz Ahmad", "Abdullah Khan"] },
   { id: "r2", activity: "Room Arrangement", persons: ["Abdullah Khan"] },
-  { id: "r3", activity: "Conveyance Arrangement", persons: ["Abdullah Khan"] },
+  { id: "r3", activity: "Conveyance Arrangement", persons: ["Muhammad Hamza"] },
   { id: "r4", activity: "Drive Coordination", persons: ["Muhammad Haris"] },
   { id: "r5", activity: "Food Menu Decision", persons: ["All L&D"] },
-  { id: "r6", activity: "Restaurant Reservation", persons: ["Hasnain Tariq"] },
+  { id: "r6", activity: "Restaurant Reservation", persons: ["Muhammad Hamza"] },
   { id: "r7", activity: "Bill Collection", persons: ["Muhammad Ubaidullah", "Muhammad Haris"] },
   { id: "r8", activity: "Finance Reporting", persons: ["Muhammad Ubaidullah"] },
+  { id: "r9", activity: "Photography", persons: ["Muhammad Hamza", "Muhammad Haris"] },
 ];
 
 let state = { opening: 350000, entries: [], responsibilities: DEFAULT_RESPONSIBILITIES.map((r) => ({ ...r, persons: [...r.persons] })) };
